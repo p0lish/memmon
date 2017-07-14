@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
+    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='metricsgraphics.css') }}">
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="{{ url_for('static', filename='metricsgraphics.js') }}"></script>
+    <title>title</title>
+</head>
+<body>
+<div id='trunk'></div>
+</body>
+<script>
+    var DATAPOINTS = [];
+    var DATAPOINT_MAX = 7798468608;
+
+
+    function get_new_metrics() {
+        fetch(location.href + 'memory')
+            .then(function (response) {
+                var contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    return response.json().then(function (json) {
+                        DATAPOINTS.push(json);
+                        DATAPOINT_MAX = json['total'];
+                    })
+                }
+            })
+            .catch(function (error) {
+                console.error(error);
+            })
+    }
+
+    function convert_data(item) {
+        item.timestamp = new Date(item.timestamp);
+        return item;
+    }
+
+    function get_datapoints() {
+        data = DATAPOINTS.map(convert_data);
+        return data;
+    }
+
+    get_new_metrics();
+    console.log(DATAPOINT_MAX);
+
+
+    var mem_usage = {
+        title: "Memory usage",
+        description: "Memory usage",
+        data: DATAPOINTS,
+        width: 1000,
+        height: 200,
+        right: 40,
+        target: '#trunk',
+        linked: false,
+        x_accessor: 'timestamp',
+        y_accessor: 'used',
+        transition_on_update: false,
+        max_y: DATAPOINT_MAX
+    };
+
+
+    var intervalID = setInterval(function () {
+        get_new_metrics();
+        mem_usage.data = get_datapoints();
+        MG.data_graphic(mem_usage);
+
+    }, 1000);
+</script>
+
+</html>
