@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='metricsgraphics.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
     <script src="https://d3js.org/d3.v4.min.js"></script>
     <script src="{{ url_for('static', filename='metricsgraphics.js') }}"></script>
+    
     <title>title</title>
 </head>
 <body>
@@ -13,7 +15,10 @@
 </body>
 <script>
     var DATAPOINTS = [];
-    var DATAPOINT_MAX = 7798468608;
+    var MAX_MEMORY = 0;
+    var MAX_DATAPOINT = 10000;
+    get_available_memory();
+
 
 
     function get_new_metrics() {
@@ -23,7 +28,22 @@
                 if (contentType && contentType.indexOf("application/json") !== -1) {
                     return response.json().then(function (json) {
                         DATAPOINTS.push(json);
-                        DATAPOINT_MAX = json['total'];
+                    })
+                }
+            })
+            .catch(function (error) {
+                console.error(error);
+            })
+    }
+
+
+    function get_available_memory() {
+        fetch(location.href + 'memory')
+            .then(function (response) {
+                var contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    return response.json().then(function (json) {
+                         MAX_MEMORY = json['total'];
                     })
                 }
             })
@@ -38,13 +58,13 @@
     }
 
     function get_datapoints() {
+        DATAPOINTS = DATAPOINTS.slice(-MAX_DATAPOINT)
+        console.info('Number of datapoints: ', DATAPOINTS.length)
         data = DATAPOINTS.map(convert_data);
         return data;
     }
 
     get_new_metrics();
-    console.log(DATAPOINT_MAX);
-
 
     var mem_usage = {
         title: "Memory usage",
@@ -58,13 +78,15 @@
         x_accessor: 'timestamp',
         y_accessor: 'used',
         transition_on_update: false,
-        max_y: DATAPOINT_MAX
+        max_y: MAX_MEMORY
     };
 
 
     var intervalID = setInterval(function () {
         get_new_metrics();
         mem_usage.data = get_datapoints();
+        mem_usage.max_y = MAX_MEMORY;
+        mem_usage.title = "Memory usage (datapoints: " + DATAPOINTS.length + ")"
         MG.data_graphic(mem_usage);
 
     }, 1000);
